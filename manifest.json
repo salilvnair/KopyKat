@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KopyKat",
-  "version": "2.1.0",
+  "version": "1.0.0",
   "description": "Syncs sessionStorage keys (e.g. currentUser / authToken) across a from → to map of tabs and origins.",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
