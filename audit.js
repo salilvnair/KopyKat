@@ -65,11 +65,6 @@ searchEl.addEventListener("input", render);
 
 chrome.runtime.sendMessage({ type: "GET_AUDIT" }, (res) => { auditLog = res?.auditLog ?? []; render(); });
 
-/* ---------- clear log ---------- */
-$("#clear").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "CLEAR_AUDIT" }, () => { auditLog = []; render(); toast("Audit log cleared"); });
-});
-
 /* ---------- sync tabs ---------- */
 $("#syncTabs").addEventListener("click", () => {
   const label = $("#syncTabsLabel");
@@ -117,28 +112,49 @@ importFile.addEventListener("change", () => {
   reader.readAsText(file);
 });
 
-/* ---------- clear keys everywhere (modal) ---------- */
+/* ---------- reusable warning modal ---------- */
 const backdrop = $("#backdrop");
-function openModal() {
-  chrome.storage.local.get({ syncKeys: [], mappings: [] }, (s) => {
-    const keys = s.syncKeys.length ? s.syncKeys.join(", ") : "the synced keys";
-    $("#modalBody").innerHTML = `This removes <b>${keys}</b> from every mapped destination tab right now. Each app will be signed out until it sets the value again.`;
-    const targets = [...new Set((s.mappings || []).flatMap((m) => m.to || []))];
-    const box = $("#modalTargets"); box.innerHTML = "";
-    targets.forEach((t) => { const c = document.createElement("span"); c.className = "chip to"; c.textContent = t; box.append(c); });
-    backdrop.hidden = false;
-  });
+let pendingConfirm = null;
+function openModal({ title, body, targets = [], confirmLabel, onConfirm }) {
+  $("#modalTitle").textContent = title;
+  $("#modalBody").innerHTML = body;
+  const box = $("#modalTargets"); box.innerHTML = "";
+  targets.forEach((t) => { const c = document.createElement("span"); c.className = "chip to"; c.textContent = t; box.append(c); });
+  $("#confirmModal").textContent = confirmLabel;
+  pendingConfirm = onConfirm;
+  backdrop.hidden = false;
 }
-function closeModal() { backdrop.hidden = true; }
-$("#clearKeys").addEventListener("click", openModal);
+function closeModal() { backdrop.hidden = true; pendingConfirm = null; }
 $("#cancelModal").addEventListener("click", closeModal);
 backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !backdrop.hidden) closeModal(); });
-$("#confirmModal").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "CLEAR_ALL_TABS" }, (res) => {
-    closeModal();
-    const n = res?.cleared ?? 0;
-    toast(n ? `Cleared on ${n} origin${n === 1 ? "" : "s"}` : "No mapped tabs open");
-    chrome.runtime.sendMessage({ type: "GET_AUDIT" }, (r) => { auditLog = r?.auditLog ?? []; render(); });
+$("#confirmModal").addEventListener("click", () => { const fn = pendingConfirm; closeModal(); if (fn) fn(); });
+
+// Clear keys everywhere
+$("#clearKeys").addEventListener("click", () => {
+  chrome.storage.local.get({ syncKeys: [], mappings: [] }, (s) => {
+    const keys = s.syncKeys.length ? s.syncKeys.join(", ") : "the synced keys";
+    const targets = [...new Set((s.mappings || []).flatMap((m) => m.to || []))];
+    openModal({
+      title: "Clear synced keys everywhere?",
+      body: `This removes <b>${keys}</b> from every mapped destination tab right now. Each app will be signed out until it sets the value again.`,
+      targets,
+      confirmLabel: "Clear everywhere",
+      onConfirm: () => chrome.runtime.sendMessage({ type: "CLEAR_ALL_TABS" }, (res) => {
+        const n = res?.cleared ?? 0;
+        toast(n ? `Cleared on ${n} origin${n === 1 ? "" : "s"}` : "No mapped tabs open");
+        chrome.runtime.sendMessage({ type: "GET_AUDIT" }, (r) => { auditLog = r?.auditLog ?? []; render(); });
+      })
+    });
+  });
+});
+
+// Clear the audit log (now also confirmed)
+$("#clear").addEventListener("click", () => {
+  openModal({
+    title: "Clear the audit log?",
+    body: "This permanently removes all recorded sync events. This can't be undone (the last 50 events are kept otherwise).",
+    confirmLabel: "Clear log",
+    onConfirm: () => chrome.runtime.sendMessage({ type: "CLEAR_AUDIT" }, () => { auditLog = []; render(); toast("Audit log cleared"); })
   });
 });
