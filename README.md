@@ -19,9 +19,9 @@ Sign in once — every sibling app on your allow‑list picks up the token autom
 
 ## What it does
 
-KopyKat mirrors chosen `sessionStorage` keys — like your `currentUserTokenState` auth token — across the exact origins you allow‑list. When one tab's value changes, every other open tab on an allow‑listed origin gets the same value written into its `sessionStorage`, instantly.
+KopyKat mirrors chosen `sessionStorage` keys — like your `currentUser` token — across the exact origins you allow‑list. When one tab's value changes, every other open tab on an allow‑listed origin gets the same value written into its `sessionStorage`, instantly.
 
-If your apps already read the token from `sessionStorage` on each request (e.g. a `createCustomAxios` / `customFetch` interceptor reading `authToken` from `sessionStorage.currentUserTokenState`), **nothing in your app has to change** — KopyKat just keeps that key identical everywhere.
+If your apps already read the token from `sessionStorage` on each request, **nothing in your app has to change** — KopyKat just keeps that key identical everywhere.
 
 It stays **completely inactive** until you both enable the engine **and** allow‑list origins. Nothing is ever written to a site you didn't list.
 
