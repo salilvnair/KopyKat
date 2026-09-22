@@ -59,7 +59,7 @@ Both browsers use the same Manifest V3 build — one folder works for both.
 
 ## Configure
 
-KopyKat uses a **sync map**: each rule copies a value **from** one source origin **to** many destinations. The map is also the allow‑list — only origins that appear in a rule are ever touched — so a value flows **from → to** only and the audit log reads cleanly as `https://dev.com → http://localhost:8080`.
+KopyKat uses a **sync map**: each rule copies a value **from** one source origin **to** many destinations, so a value flows **from → to** only and the audit log reads cleanly as `https://dev.com → http://localhost:8080`. An optional **Allowed origins** list adds a hard safety fence — leave it empty and the map governs; add origins to require that every read/write also matches it.
 
 1. Click the KopyKat icon → **Options** (onboarding opens automatically on first install).
 2. Add the **sessionStorage keys** to sync (default: `currentUser`). Use **Bulk edit** to paste a whole comma/newline‑separated list.

@@ -4,9 +4,12 @@ const DEFAULT_SETTINGS = {
   // sessionStorage keys to mirror (e.g. auth token, tenant id).
   syncKeys: ["currentUser"],
   // Sync map: each rule copies a value FROM one source origin TO many destinations.
-  // The map is also the allow-list — only origins that appear in a rule are ever touched.
   //   mappings: [{ from: "https://dev.com", to: ["http://localhost:8080", "..."] }]
   mappings: [],
+  // Optional gatekeeper. When EMPTY, the sync map alone governs (any origin in a
+  // rule participates). When NON-EMPTY, an origin must ALSO match one of these to
+  // be read or written — a hard safety fence on top of the map.
+  allowedOrigins: [],
   // Auto-reload mapped tabs when the extension is (re)installed/updated.
   autoReloadOnUpdate: true
 };
@@ -44,13 +47,18 @@ function destinationPatternsFor(origin, settings) {
   }
   return out;
 }
-// A source (we read from it) is any origin matching a rule's "from".
-function isSourceOrigin(origin, settings) {
-  return matchesAny(origin, mappingSources(settings));
+// Gatekeeper: empty allow-list means "no extra fence" (map governs).
+function passesGate(origin, settings) {
+  const list = settings.allowedOrigins || [];
+  return list.length === 0 || matchesAny(origin, list);
 }
-// A destination (we write to it) is any origin matching some rule's "to".
+// A source (we read from it) matches a rule's "from" AND passes the gate.
+function isSourceOrigin(origin, settings) {
+  return passesGate(origin, settings) && matchesAny(origin, mappingSources(settings));
+}
+// A destination (we write to it) matches some rule's "to" AND passes the gate.
 function isDestOrigin(origin, settings) {
-  return (settings.mappings || []).some((m) => matchesAny(origin, m.to));
+  return passesGate(origin, settings) && (settings.mappings || []).some((m) => matchesAny(origin, m.to));
 }
 // Every distinct origin referenced anywhere in the map (for reload / clear-all).
 function allMappedOrigins(settings) {

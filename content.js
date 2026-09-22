@@ -18,8 +18,10 @@
   }
   const froms = () => (settings?.mappings || []).map((m) => m.from);
   const tos = () => (settings?.mappings || []).flatMap((m) => m.to || []);
-  const canSource = () => !!settings?.enabled && matches(froms());
-  const canDest = () => !!settings?.enabled && matches(tos());
+  // Empty allow-list = no extra fence; otherwise this origin must match it.
+  const passesGate = () => { const l = settings?.allowedOrigins || []; return l.length === 0 || matches(l); };
+  const canSource = () => !!settings?.enabled && passesGate() && matches(froms());
+  const canDest = () => !!settings?.enabled && passesGate() && matches(tos());
 
   function writeValue(key, value) {
     const current = sessionStorage.getItem(key);
@@ -44,7 +46,7 @@
   }
 
   chrome.storage.local.get(
-    { enabled: false, syncKeys: ["currentUser"], mappings: [] },
+    { enabled: false, syncKeys: ["currentUser"], mappings: [], allowedOrigins: [] },
     (res) => {
       settings = res;
       for (const key of settings.syncKeys) {
@@ -86,6 +88,7 @@
     if (changes.enabled) settings.enabled = changes.enabled.newValue;
     if (changes.syncKeys) settings.syncKeys = changes.syncKeys.newValue;
     if (changes.mappings) settings.mappings = changes.mappings.newValue;
+    if (changes.allowedOrigins) settings.allowedOrigins = changes.allowedOrigins.newValue;
   });
 
   function poll() {

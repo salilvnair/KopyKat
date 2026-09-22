@@ -12,7 +12,7 @@ const themeToggle = $("themeToggle");
 const toastEl = $("toast");
 
 let currentOrigin = "-";
-let state = { enabled: false, mappings: [], syncKeys: [] };
+let state = { enabled: false, mappings: [], syncKeys: [], allowedOrigins: [] };
 
 /* ---------- theme ---------- */
 (function initTheme() {
@@ -60,8 +60,10 @@ function relativeTime(ts) {
   return new Date(ts).toLocaleDateString();
 }
 function renderStatus() {
-  const isFrom = inList(currentOrigin, froms());
-  const isTo = inList(currentOrigin, tos());
+  const gate = state.allowedOrigins || [];
+  const passesGate = gate.length === 0 || inList(currentOrigin, gate);
+  const isFrom = passesGate && inList(currentOrigin, froms());
+  const isTo = passesGate && inList(currentOrigin, tos());
   const mapped = isFrom || isTo;
 
   allowedTextEl.textContent = mapped ? "Yes" : "No";
@@ -87,7 +89,7 @@ function renderStatus() {
   }
 }
 
-chrome.storage.local.get({ enabled: false, mappings: [], syncKeys: [] }, (settings) => {
+chrome.storage.local.get({ enabled: false, mappings: [], syncKeys: [], allowedOrigins: [] }, (settings) => {
   state = settings;
   enabledToggle.checked = settings.enabled;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

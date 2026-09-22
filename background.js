@@ -230,7 +230,7 @@ async function handleTokenReport(message, sender) {
   await persistLastValues();
 
   const destPatterns = destinationPatternsFor(message.origin, settings);
-  const delivered = await broadcastValue(key, value, sender.tab?.id, destPatterns);
+  const delivered = await broadcastValue(key, value, sender.tab?.id, destPatterns, settings);
 
   // Only record real deliveries — no "no tab open / unreachable" noise.
   if (delivered.length) {
@@ -245,7 +245,7 @@ async function handleTokenReport(message, sender) {
   }
 }
 
-async function broadcastValue(key, value, sourceTabId, destPatterns) {
+async function broadcastValue(key, value, sourceTabId, destPatterns, settings) {
   if (!destPatterns.length) return [];
   const tabs = await chrome.tabs.query({});
   const delivered = [];
@@ -253,7 +253,7 @@ async function broadcastValue(key, value, sourceTabId, destPatterns) {
     if (!tab.id || tab.id === sourceTabId || !tab.url) continue;
     let origin;
     try { origin = new URL(tab.url).origin; } catch { continue; }
-    if (!matchesAny(origin, destPatterns)) continue;
+    if (!matchesAny(origin, destPatterns) || !passesGate(origin, settings)) continue;
     const sent = await chrome.tabs.sendMessage(tab.id, { type: "TOKEN_APPLY", key, value })
       .then(() => true).catch(() => false);
     if (sent) delivered.push(origin);

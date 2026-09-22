@@ -6,6 +6,7 @@ const toastEl = $("#toast");
 
 let syncKeys = [];
 let mappings = []; // [{from, to:[...]}]
+let allowedOrigins = []; // optional gatekeeper
 
 /* ---------- theme ---------- */
 (function initTheme() {
@@ -106,7 +107,7 @@ function renderMap() {
     box.append(e); return;
   }
   const table = document.createElement("table"); table.className = "map-table";
-  table.innerHTML = '<thead><tr><th>From (source)</th><th class="col-to">To (destinations)</th><th class="col-act"></th></tr></thead>';
+  table.innerHTML = '<thead><tr><th class="col-from">From (source)</th><th class="col-to">To (destinations)</th><th class="col-act"></th></tr></thead>';
   const tb = document.createElement("tbody");
   mappings.forEach((rule, i) => {
     const tr = document.createElement("tr");
@@ -141,16 +142,39 @@ $("#addRule").addEventListener("click", () => {
 });
 $("#newFrom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#addRule").click(); } });
 
+/* ---------- allowed origins (optional gatekeeper) ---------- */
+const allowedChips = $("#allowedChips");
+const allowedInput = $("#allowedInput");
+function renderAllowed() {
+  $("#allowedCount").textContent = String(allowedOrigins.length);
+  allowedChips.innerHTML = "";
+  if (!allowedOrigins.length) {
+    const e = document.createElement("span"); e.className = "hint"; e.style.margin = "0";
+    e.textContent = "Empty — the sync map governs (no extra fence).";
+    allowedChips.append(e); return;
+  }
+  allowedOrigins.forEach((o, i) => allowedChips.append(chip(o, "", () => { allowedOrigins.splice(i, 1); renderAllowed(); })));
+}
+function addAllowed() {
+  const v = normalizeOrigin(allowedInput.value.trim());
+  if (!v || allowedOrigins.includes(v)) return;
+  allowedOrigins.push(v); allowedInput.value = ""; renderAllowed();
+}
+$("#addAllowed").addEventListener("click", addAllowed);
+allowedInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addAllowed(); } });
+
 /* ---------- load ---------- */
 chrome.storage.local.get(
-  { enabled: false, syncKeys: ["currentUser"], mappings: [], autoReloadOnUpdate: true },
+  { enabled: false, syncKeys: ["currentUser"], mappings: [], allowedOrigins: [], autoReloadOnUpdate: true },
   (res) => {
     enabledEl.checked = res.enabled;
     autoReloadEl.checked = res.autoReloadOnUpdate;
     syncKeys = [...res.syncKeys];
     mappings = (res.mappings || []).map((m) => ({ from: m.from, to: [...(m.to || [])] }));
+    allowedOrigins = [...(res.allowedOrigins || [])];
     renderKeys();
     renderMap();
+    renderAllowed();
   }
 );
 
@@ -159,7 +183,7 @@ $("#save").addEventListener("click", () => {
   if (!$("#keysBulkWrap").hidden) applyBulk();
   const clean = mappings.filter((m) => m.from).map((m) => ({ from: m.from, to: [...new Set(m.to || [])] }));
   chrome.storage.local.set(
-    { enabled: enabledEl.checked, syncKeys, mappings: clean, autoReloadOnUpdate: autoReloadEl.checked },
+    { enabled: enabledEl.checked, syncKeys, mappings: clean, allowedOrigins, autoReloadOnUpdate: autoReloadEl.checked },
     () => toast("✓ Settings saved")
   );
 });
@@ -173,7 +197,7 @@ $("#welcomeDismiss").addEventListener("click", () => (welcome.hidden = true));
 $("#exportBtn").addEventListener("click", () => {
   const config = {
     app: "KopyKat", version: 3, exportedAt: new Date().toISOString(),
-    settings: { enabled: enabledEl.checked, syncKeys, mappings, autoReloadOnUpdate: autoReloadEl.checked }
+    settings: { enabled: enabledEl.checked, syncKeys, mappings, allowedOrigins, autoReloadOnUpdate: autoReloadEl.checked }
   };
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -194,9 +218,10 @@ importFile.addEventListener("change", () => {
         mappings = s.mappings.filter((m) => m && typeof m.from === "string")
           .map((m) => ({ from: m.from, to: Array.isArray(m.to) ? m.to.filter((x) => typeof x === "string") : [] }));
       }
+      if (Array.isArray(s.allowedOrigins)) allowedOrigins = s.allowedOrigins.filter((x) => typeof x === "string");
       if (typeof s.enabled === "boolean") enabledEl.checked = s.enabled;
       if (typeof s.autoReloadOnUpdate === "boolean") autoReloadEl.checked = s.autoReloadOnUpdate;
-      renderKeys(); renderMap();
+      renderKeys(); renderMap(); renderAllowed();
       toast("✓ Imported — review, then Save");
     } catch { toast("✗ Invalid config file", "bad"); }
     importFile.value = "";
