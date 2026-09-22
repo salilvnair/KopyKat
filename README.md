@@ -60,7 +60,7 @@ Both browsers use the same Manifest V3 build — one folder works for both.
 ## Configure
 
 1. Click the KopyKat icon → **Options**.
-2. Add the **sessionStorage keys** to sync (default: `currentUserTokenState`).
+2. Add the **sessionStorage keys** to sync (default: `currentUser`).
 3. Add the **origins** to sync. Wildcards are allowed:
    ```
    https://app-a.example.com
