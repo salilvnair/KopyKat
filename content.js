@@ -38,7 +38,7 @@
   }
 
   chrome.storage.local.get(
-    { enabled: false, syncKeys: ["currentUserTokenState"], allowedOrigins: [], fromOrigins: [], toOrigins: [] },
+    { enabled: false, syncKeys: ["currentUser"], allowedOrigins: [], fromOrigins: [], toOrigins: [] },
     (res) => {
       settings = res;
       const active = canSource();

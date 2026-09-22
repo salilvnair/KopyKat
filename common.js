@@ -2,7 +2,7 @@
 const DEFAULT_SETTINGS = {
   enabled: false,
   // Multiple sessionStorage keys can be synced (e.g. auth token, tenant id, etc.)
-  syncKeys: ["currentUserTokenState"],
+  syncKeys: ["currentUser"],
   // Gatekeeper: an origin must be here to be touched at all (read OR written).
   // Empty by default: the extension does nothing until you explicitly allow-list origins.
   allowedOrigins: [],

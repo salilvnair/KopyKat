@@ -127,7 +127,7 @@ function renderAll() {
 chrome.storage.local.get(
   {
     enabled: false,
-    syncKeys: ["currentUserTokenState"],
+    syncKeys: ["currentUser"],
     allowedOrigins: [],
     fromOrigins: [],
     toOrigins: [],
