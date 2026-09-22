@@ -59,26 +59,21 @@ Both browsers use the same Manifest V3 build — one folder works for both.
 
 ## Configure
 
-KopyKat separates *permission* from *direction* so your audit log stays clean:
-
-- **Allowed origins** — the gatekeeper. An origin must be here to be touched at all.
-- **Sync from** — sources. A change here is copied…
-- **Sync to** — …to these destinations.
-
-So a value flows **from → to** only, and the log reads `https://dev.com → http://localhost:8080` instead of every origin fanning out to every other.
+KopyKat uses a **sync map**: each rule copies a value **from** one source origin **to** many destinations. The map is also the allow‑list — only origins that appear in a rule are ever touched — so a value flows **from → to** only and the audit log reads cleanly as `https://dev.com → http://localhost:8080`.
 
 1. Click the KopyKat icon → **Options** (onboarding opens automatically on first install).
-2. Add the **sessionStorage keys** to sync (default: `currentUser`).
-3. Add your origins to **Allowed origins**, then list which are **Sync from** and which are **Sync to**. Wildcards are allowed:
+2. Add the **sessionStorage keys** to sync (default: `currentUser`). Use **Bulk edit** to paste a whole comma/newline‑separated list.
+3. Build the **sync map** — add a source origin, then add one or more destinations to it. Add as many rules as you need (N sources, each with N destinations). Wildcards are allowed:
    ```
-   https://dev.com
-   http://localhost:8080
-   https://*.example.com        # any subdomain
+   From: https://dev.com          To: http://localhost:8080, http://localhost:3000
+   From: https://staging.example.com   To: https://*.example.com
    ```
 4. Flip the **Sync engine** on and **Save**.
-5. Reload the tabs on your origins so the content script attaches (or use **Reload synced tabs** in the popup).
+5. Reload the tabs in your map so the content script attaches (or use **Sync tabs** in the popup / audit page). New destination tabs auto‑sync on open.
 
 <div align="center">
+<img src="media/options.png" width="720" alt="KopyKat sync map options" />
+<br /><br />
 <img src="media/wizard.png" width="560" alt="KopyKat first-run onboarding" />
 </div>
 
@@ -87,19 +82,21 @@ So a value flows **from → to** only, and the log reads `https://dev.com → ht
 ## Features
 
 **Sync engine**
+- 🗺️ **From → To sync map** — one source maps to many destinations, many rules (many‑to‑many). The map is the allow‑list, and the audit log stays clean (`dev.com → localhost:8080`).
 - ⚡ **Instant push sync** — a MAIN‑world script patches `sessionStorage.setItem` and broadcasts the moment a value changes; a 2.5 s poll is only a safety net.
-- ➡️ **Directional from → to** — separate source and destination lists keep the audit log clean (`dev.com → localhost:8080`), gated by an allow‑list.
-- 🌐 **Wildcard origins** — `https://*.example.com` matches every subdomain.
-- 🔁 **Auto‑reload allow‑listed tabs** on update so content scripts re‑attach — plus a manual **Reload synced tabs** button.
+- ⟳ **Auto‑sync on tab open** — a destination tab that loads missing or stale keys is filled in automatically (exact per‑key value compare, objects included).
+- 🌐 **Wildcard origins** — `https://*.example.com` matches every subdomain, in either column.
+- 🔁 **Auto‑reload mapped tabs** on update — plus a manual **Sync tabs** button.
 - ⌨️ **Keyboard shortcut** — `Ctrl/⌘+Shift+Y` toggles the engine.
 
 **Safety**
 - 🔒 **Encrypted at rest** — cached values are AES‑GCM encrypted with a key kept only in memory (`storage.session`), so a disk/profile dump can't read them.
-- 🛡️ **Default‑deny + masked audit** — off until you allow‑list; every sync is logged with a *masked* value preview (never the raw secret), last 50 events.
-- 🧹 **Panic “clear everywhere”** — one button removes the synced keys from every allow‑listed tab.
-- 💾 **Export / import config** — save your keys + origins to JSON and load them on another machine.
+- 🛡️ **Default‑deny + masked audit** — off until you map origins; only real deliveries are logged, with a *masked* value preview (never the raw secret), last 50 events.
+- 🧹 **Panic “clear everywhere”** — a warning dialog names the keys + destinations, then wipes them from every mapped tab.
+- 💾 **Export / import config** — save your keys + sync map to JSON and load them on another machine.
 
 **Experience**
+- 📋 **Copy icons & bulk edit** — one‑click copy on every key/origin chip; Postman‑style bulk paste for keys.
 - 😺 **State‑aware icon** — an awake terracotta cat when syncing, a sleeping gray cat when off.
 - 🔢 **Toolbar badge** — shows engine state and flashes how many tabs each sync reached.
 - 👋 **First‑run onboarding** — a short welcome walkthrough on install.
@@ -109,7 +106,7 @@ So a value flows **from → to** only, and the log reads `https://dev.com → ht
 
 ## Audit log
 
-Open the popup → **Audit Log** (or Options → **Audit log**) to see every sync: timestamp, key, source origin, destination origin(s), and a masked value preview. Search/filter by key, origin, or value. Destinations that couldn't be reached are flagged `⚠ unreachable` — reload that tab.
+Open the popup → **Audit Log** (or Options → **Audit log**) to see every sync: timestamp, key, source origin, destination origin(s), and a masked value preview. Only real deliveries are recorded — no "no tab open" noise. Search/filter by key, origin, or value, and run **Sync tabs / Export / Import / Clear keys everywhere** right from the toolbar.
 
 ---
 

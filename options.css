@@ -1,7 +1,81 @@
 .panel {
-  max-width: 560px;
+  max-width: 760px;
   animation: fade-up 0.35s var(--ease);
 }
+
+.grow { flex: 1; }
+
+.linkbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 650; color: var(--accent-dark);
+  font-family: inherit;
+}
+.linkbtn svg { width: 14px; height: 14px; }
+.linkbtn:hover { color: var(--accent); }
+
+/* copy / remove buttons inside chips */
+.chip-cp, .chip-rm {
+  width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer;
+  display: grid; place-items: center; flex-shrink: 0;
+  background: rgba(0,0,0,0.06); color: inherit; padding: 0;
+}
+.chip-cp svg { width: 11px; height: 11px; }
+.chip-rm { font-size: 12px; font-weight: 700; line-height: 1; }
+.chip-cp:hover, .chip-rm:hover { background: var(--accent); color: #fff; }
+.chip .chip-text { font-family: "Cascadia Code", Consolas, monospace; }
+
+/* bulk edit */
+textarea {
+  width: 100%; min-height: 92px; box-sizing: border-box;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+  background: var(--card-2); color: var(--text-dark);
+  font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; padding: 11px; resize: vertical;
+}
+textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.bulk-actions { display: flex; gap: 9px; margin-top: 9px; }
+
+/* sync map table */
+.table-card {
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.table-wrap { overflow-x: auto; }
+.map-empty { padding: 22px 16px; text-align: center; color: var(--text-faint); font-size: 13px; }
+.map-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 520px; }
+.map-table th {
+  text-align: left; font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
+  font-weight: 700; padding: 11px 16px; background: var(--card-2); border-bottom: 1px solid var(--border);
+}
+.map-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.map-table tbody tr:last-child td { border-bottom: none; }
+.map-table tbody tr:hover td { background: var(--card-2); }
+.col-to { width: 58%; }
+.col-act { width: 48px; text-align: right; }
+.map-table .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.muted-hint { color: var(--text-faint); font-size: 12px; }
+.chip.from-cell { background: var(--accent-light); color: var(--accent-dark); }
+.chip.to { background: var(--success-bg); color: var(--success); }
+.add-row.compact { margin-top: 9px; }
+.add-row.compact input { padding: 7px 10px; font-size: 12px; }
+.btn-primary.sm { padding: 7px 12px; font-size: 12px; }
+.rowdel {
+  border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+  width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+}
+.rowdel:hover { color: var(--danger); border-color: var(--danger); }
+.rowdel svg { width: 15px; height: 15px; }
+
+.table-foot {
+  display: flex; gap: 9px; padding: 12px 14px; border-top: 1px solid var(--border); background: var(--card-2);
+}
+.table-foot input {
+  flex: 1; min-width: 0; padding: 9px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--card-bg); color: var(--text-dark);
+  font-size: 12.5px; font-family: "Cascadia Code", Consolas, monospace;
+}
+.table-foot input:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.table-foot button { flex-shrink: 0; }
 
 .panel-header {
   display: flex;

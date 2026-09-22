@@ -2,6 +2,39 @@ body {
   width: 320px;
 }
 
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: 14px; transform: translate(-50%, 14px);
+  background: var(--text-dark); color: var(--card-bg);
+  font-size: 12.5px; font-weight: 600; padding: 9px 15px; border-radius: 999px;
+  box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none;
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease); z-index: 50; max-width: 90%;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* clear-keys warning modal */
+.backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+  display: none; align-items: center; justify-content: center; padding: 16px; z-index: 60;
+}
+.backdrop:not([hidden]) { display: flex; }
+.modal {
+  width: 100%; background: var(--card-bg); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 18px;
+  animation: fade-up 0.22s var(--ease);
+}
+.warn-ic {
+  width: 42px; height: 42px; border-radius: 12px; background: var(--danger-bg); color: var(--danger);
+  display: grid; place-items: center; margin-bottom: 12px;
+}
+.warn-ic svg { width: 22px; height: 22px; }
+.modal h3 { margin: 0 0 6px; font-size: 15px; color: var(--text-dark); }
+.modal p { margin: 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
+.modal p b { color: var(--text-dark); }
+.modal-actions { display: flex; gap: 9px; margin-top: 16px; }
+.modal-actions button { flex: 1; justify-content: center; }
+.btn-danger.solid { background: var(--danger); color: #fff; border-color: var(--danger); }
+
 .card {
   margin: 0;
   padding: 18px;

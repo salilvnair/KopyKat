@@ -1,17 +1,13 @@
 // Shared defaults/helpers used by background, content, options and popup scripts.
 const DEFAULT_SETTINGS = {
   enabled: false,
-  // Multiple sessionStorage keys can be synced (e.g. auth token, tenant id, etc.)
+  // sessionStorage keys to mirror (e.g. auth token, tenant id).
   syncKeys: ["currentUser"],
-  // Gatekeeper: an origin must be here to be touched at all (read OR written).
-  // Empty by default: the extension does nothing until you explicitly allow-list origins.
-  allowedOrigins: [],
-  // Direction. A change is only READ from a "from" origin and only WRITTEN to a
-  // "to" origin, so the audit log reads cleanly as  from -> to  (no cross-product).
-  fromOrigins: [],
-  toOrigins: [],
-  // Auto-reload allow-listed tabs when the extension is (re)installed/updated, so their
-  // content scripts re-attach instead of being silently orphaned.
+  // Sync map: each rule copies a value FROM one source origin TO many destinations.
+  // The map is also the allow-list — only origins that appear in a rule are ever touched.
+  //   mappings: [{ from: "https://dev.com", to: ["http://localhost:8080", "..."] }]
+  mappings: [],
+  // Auto-reload mapped tabs when the extension is (re)installed/updated.
   autoReloadOnUpdate: true
 };
 
@@ -21,32 +17,53 @@ function getSettings() {
   return chrome.storage.local.get(DEFAULT_SETTINGS);
 }
 
-// Origin allow-list matching, with wildcard support:
-//   "https://app.example.com"  -> exact
-//   "https://*.example.com"    -> any subdomain (a.example.com, a.b.example.com)
-//   "*"                        -> everything (use with care)
+/* ---- origin matching (supports "*" wildcards, e.g. https://*.example.com) ---- */
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function originMatches(origin, pattern) {
   if (pattern === origin) return true;
-  if (!pattern.includes("*")) return false;
+  if (!pattern || !pattern.includes("*")) return false;
   const rx = new RegExp("^" + pattern.split("*").map(escapeRegex).join(".*") + "$");
   return rx.test(origin);
 }
 function matchesAny(origin, list) {
   return Array.isArray(list) && list.some((p) => originMatches(origin, p));
 }
-function isOriginAllowed(origin, allowedOrigins) {
-  return matchesAny(origin, allowedOrigins);
+
+/* ---- sync-map helpers ---- */
+function mappingSources(settings) {
+  return (settings.mappings || []).map((m) => m.from).filter(Boolean);
 }
-// A source (we read from it) must pass the gate AND be listed under "from".
+function destinationPatternsFor(origin, settings) {
+  const out = [];
+  for (const m of settings.mappings || []) {
+    if (originMatches(origin, m.from)) {
+      for (const t of m.to || []) out.push(t);
+    }
+  }
+  return out;
+}
+// A source (we read from it) is any origin matching a rule's "from".
 function isSourceOrigin(origin, settings) {
-  return isOriginAllowed(origin, settings.allowedOrigins) && matchesAny(origin, settings.fromOrigins);
+  return matchesAny(origin, mappingSources(settings));
 }
-// A destination (we write to it) must pass the gate AND be listed under "to".
+// A destination (we write to it) is any origin matching some rule's "to".
 function isDestOrigin(origin, settings) {
-  return isOriginAllowed(origin, settings.allowedOrigins) && matchesAny(origin, settings.toOrigins);
+  return (settings.mappings || []).some((m) => matchesAny(origin, m.to));
+}
+// Every distinct origin referenced anywhere in the map (for reload / clear-all).
+function allMappedOrigins(settings) {
+  const set = new Set();
+  for (const m of settings.mappings || []) {
+    if (m.from) set.add(m.from);
+    for (const t of m.to || []) set.add(t);
+  }
+  return [...set];
+}
+// True when at least one rule can actually move a value (has a from and a to).
+function hasUsableFlow(settings) {
+  return (settings.mappings || []).some((m) => m.from && (m.to || []).length > 0);
 }
 
 // Never store/display raw secret values in the audit log - only a short masked preview.
@@ -56,4 +73,3 @@ function maskValue(value) {
   if (str.length <= 12) return `${str.slice(0, 2)}***`;
   return `${str.slice(0, 6)}...${str.slice(-4)} (${str.length} chars)`;
 }
-

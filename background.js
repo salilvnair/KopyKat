@@ -53,8 +53,7 @@ async function persistLastValues() {
 loadLastValues();
 
 /* ---------------------------------------------------------------------------
-   Toolbar badge — reflects engine state, and flashes the delivered count
-   after each successful sync.
+   Toolbar badge — reflects engine state, flashes delivered count after a sync.
 --------------------------------------------------------------------------- */
 const COLOR_ON = "#2f9e63";
 const COLOR_WARN = "#d99a2b";
@@ -62,29 +61,24 @@ const COLOR_WARN = "#d99a2b";
 function setActionIcon(enabled) {
   const s = enabled ? "" : "-off";
   chrome.action.setIcon({
-    path: {
-      16: `icons/icon16${s}.png`,
-      48: `icons/icon48${s}.png`,
-      128: `icons/icon128${s}.png`
-    }
+    path: { 16: `icons/icon16${s}.png`, 48: `icons/icon48${s}.png`, 128: `icons/icon128${s}.png` }
   }).catch(() => {});
 }
 
 async function refreshBadge() {
-  const { enabled, allowedOrigins, fromOrigins, toOrigins } = await getSettings();
-  setActionIcon(enabled); // terracotta when the engine is on, gray when off
-  if (!enabled) {
+  const settings = await getSettings();
+  setActionIcon(settings.enabled);
+  if (!settings.enabled) {
     await chrome.action.setBadgeText({ text: "" });
     return;
   }
-  // Nothing can flow without a gate plus a from and a to.
-  if (!allowedOrigins?.length || !fromOrigins?.length || !toOrigins?.length) {
+  if (!hasUsableFlow(settings)) {
     await chrome.action.setBadgeBackgroundColor({ color: COLOR_WARN });
     await chrome.action.setBadgeText({ text: "!" });
     return;
   }
   await chrome.action.setBadgeBackgroundColor({ color: COLOR_ON });
-  await chrome.action.setBadgeText({ text: "•" }); // • idle-but-armed dot
+  await chrome.action.setBadgeText({ text: "•" });
 }
 
 let badgeRevert;
@@ -99,7 +93,6 @@ chrome.runtime.onStartup.addListener(refreshBadge);
 chrome.runtime.onInstalled.addListener(async (details) => {
   await refreshBadge();
   if (details.reason === "install") {
-    // First-run onboarding: open Options with a welcome walkthrough.
     chrome.tabs.create({ url: chrome.runtime.getURL("options.html?welcome=1") });
   }
   if (details.reason === "install" || details.reason === "update") {
@@ -108,40 +101,60 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.enabled || changes.allowedOrigins || changes.fromOrigins || changes.toOrigins) refreshBadge();
+  if (changes.enabled || changes.mappings) refreshBadge();
 });
-
-// Also correct badge + icon whenever the service worker spins up.
 refreshBadge();
 
 /* ---------------------------------------------------------------------------
-   Auto-reload allow-listed tabs so their content scripts re-attach after an
-   extension (re)install/update. Also exposed as a manual popup action.
+   Reload / clear helpers operate on every origin referenced in the sync map.
 --------------------------------------------------------------------------- */
-async function reloadAllowedTabs() {
-  const { allowedOrigins } = await getSettings();
-  if (!allowedOrigins?.length) return 0;
+async function tabsMatching(patterns) {
   const tabs = await chrome.tabs.query({});
-  let reloaded = 0;
+  const out = [];
   for (const tab of tabs) {
     if (!tab.id || !tab.url) continue;
     let origin;
-    try {
-      origin = new URL(tab.url).origin;
-    } catch {
-      continue;
-    }
-    if (isOriginAllowed(origin, allowedOrigins)) {
-      chrome.tabs.reload(tab.id);
-      reloaded++;
-    }
+    try { origin = new URL(tab.url).origin; } catch { continue; }
+    if (matchesAny(origin, patterns)) out.push({ id: tab.id, origin });
   }
-  return reloaded;
+  return out;
 }
 
+async function reloadMappedTabs() {
+  const settings = await getSettings();
+  const targets = await tabsMatching(allMappedOrigins(settings));
+  for (const t of targets) chrome.tabs.reload(t.id);
+  return targets.length;
+}
 async function maybeAutoReloadTabs() {
   const { autoReloadOnUpdate } = await getSettings();
-  if (autoReloadOnUpdate) await reloadAllowedTabs();
+  if (autoReloadOnUpdate) await reloadMappedTabs();
+}
+
+async function clearAllTabs() {
+  const settings = await getSettings();
+  const { syncKeys } = settings;
+  const targets = await tabsMatching(allMappedOrigins(settings));
+  const clearedOrigins = new Set();
+  for (const t of targets) {
+    for (const key of syncKeys) {
+      const ok = await chrome.tabs.sendMessage(t.id, { type: "TOKEN_APPLY", key, value: null })
+        .then(() => true).catch(() => false);
+      if (ok) clearedOrigins.add(t.origin);
+    }
+  }
+  lastValues = {};
+  await chrome.storage.local.set({ lastValuesEnc: {} });
+  if (clearedOrigins.size) {
+    await appendAudit({
+      ts: Date.now(),
+      key: "(all keys)",
+      fromOrigin: "KopyKat · clear all",
+      toOrigins: [...clearedOrigins],
+      valuePreview: "(cleared everywhere)"
+    });
+  }
+  return { ok: true, cleared: clearedOrigins.size };
 }
 
 /* ---------------------------------------------------------------------------
@@ -162,6 +175,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleTokenReport(message, sender);
     return false;
   }
+  if (message?.type === "REQUEST_SYNC") {
+    handleRequestSync(message).then(sendResponse);
+    return true;
+  }
   if (message?.type === "GET_STATUS") {
     chrome.storage.local.get({ auditLog: [] }).then((res) => {
       sendResponse({ lastValues, lastEntry: res.auditLog[0] ?? null });
@@ -169,22 +186,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "GET_AUDIT") {
-    chrome.storage.local.get({ auditLog: [] }).then((res) => {
-      sendResponse({ auditLog: res.auditLog });
-    });
+    chrome.storage.local.get({ auditLog: [] }).then((res) => sendResponse({ auditLog: res.auditLog }));
     return true;
   }
-  if (message?.type === "RELOAD_ALLOWED_TABS") {
-    reloadAllowedTabs().then((count) => sendResponse({ ok: true, count }));
+  if (message?.type === "RELOAD_MAPPED_TABS") {
+    reloadMappedTabs().then((count) => sendResponse({ ok: true, count }));
     return true;
   }
   if (message?.type === "CLEAR_ALL_TABS") {
-    clearAllTabs().then((res) => sendResponse(res));
+    clearAllTabs().then(sendResponse);
     return true;
   }
   if (message?.type === "CLEAR_AUDIT") {
-    // Also reset the dedupe cache, otherwise an unchanged value reported again
-    // (e.g. after a tab reload) gets silently skipped and never re-synced.
     lastValues = {};
     chrome.storage.local.set({ auditLog: [], lastValuesEnc: {} }).then(() => sendResponse({ ok: true }));
     return true;
@@ -192,92 +205,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-// Panic button: remove every synced key from every participating tab
-// (allow-listed AND listed under "from" or "to").
-async function clearAllTabs() {
+// A destination tab just loaded — hand it the current value for each synced key so
+// it can fill in anything missing or stale (content.js applies only what differs).
+async function handleRequestSync(message) {
   const settings = await getSettings();
-  const { syncKeys } = settings;
-  const tabs = await chrome.tabs.query({});
-  const clearedOrigins = new Set();
-  for (const tab of tabs) {
-    if (!tab.id || !tab.url) continue;
-    let origin;
-    try {
-      origin = new URL(tab.url).origin;
-    } catch {
-      continue;
-    }
-    if (!isSourceOrigin(origin, settings) && !isDestOrigin(origin, settings)) continue;
-    for (const key of syncKeys) {
-      const ok = await chrome.tabs
-        .sendMessage(tab.id, { type: "TOKEN_APPLY", key, value: null })
-        .then(() => true)
-        .catch(() => false);
-      if (ok) clearedOrigins.add(origin);
-    }
+  if (!settings.enabled) return { values: {} };
+  if (!isDestOrigin(message.origin, settings)) return { values: {} };
+  const values = {};
+  for (const key of settings.syncKeys) {
+    if (key in lastValues) values[key] = lastValues[key];
   }
-  lastValues = {};
-  await chrome.storage.local.set({ lastValuesEnc: {} });
-  await appendAudit({
-    ts: Date.now(),
-    key: "(all keys)",
-    fromOrigin: "KopyKat · clear all",
-    toOrigins: [...clearedOrigins],
-    unreachableOrigins: [],
-    valuePreview: "(cleared everywhere)"
-  });
-  return { ok: true, cleared: clearedOrigins.size };
+  return { values };
 }
 
 async function handleTokenReport(message, sender) {
   const settings = await getSettings();
   if (!settings.enabled) return;
-  // Only accept a report from an origin that is allowed AND a "from" (source).
   if (!isSourceOrigin(message.origin, settings)) return;
 
   const { key, value } = message;
-  // No dedupe here: the content script already only reports on a real change
-  // or initial page load, so every report is a meaningful sync attempt - this
-  // lets a value get retried once a previously-closed target tab is opened.
+  if (!settings.syncKeys.includes(key)) return;
+
   lastValues[key] = value ?? null;
   await persistLastValues();
 
-  const toOrigins = await broadcastValue(key, value, sender.tab?.id, settings);
-  await appendAudit({
-    ts: Date.now(),
-    key,
-    fromOrigin: message.origin,
-    toOrigins: toOrigins.delivered,
-    unreachableOrigins: toOrigins.unreachable,
-    valuePreview: maskValue(value)
-  });
-  flashBadge(toOrigins.delivered.length);
+  const destPatterns = destinationPatternsFor(message.origin, settings);
+  const delivered = await broadcastValue(key, value, sender.tab?.id, destPatterns);
+
+  // Only record real deliveries — no "no tab open / unreachable" noise.
+  if (delivered.length) {
+    await appendAudit({
+      ts: Date.now(),
+      key,
+      fromOrigin: message.origin,
+      toOrigins: delivered,
+      valuePreview: maskValue(value)
+    });
+    flashBadge(delivered.length);
+  }
 }
 
-async function broadcastValue(key, value, sourceTabId, settings) {
+async function broadcastValue(key, value, sourceTabId, destPatterns) {
+  if (!destPatterns.length) return [];
   const tabs = await chrome.tabs.query({});
   const delivered = [];
-  const unreachable = [];
   for (const tab of tabs) {
     if (!tab.id || tab.id === sourceTabId || !tab.url) continue;
     let origin;
-    try {
-      origin = new URL(tab.url).origin;
-    } catch {
-      continue;
-    }
-    // Only write to origins that are allowed AND a "to" (destination).
-    if (!isDestOrigin(origin, settings)) continue;
-
-    const sent = await chrome.tabs
-      .sendMessage(tab.id, { type: "TOKEN_APPLY", key, value })
-      .then(() => true)
-      .catch(() => false); // tab may not have the content script yet - needs a reload
-
+    try { origin = new URL(tab.url).origin; } catch { continue; }
+    if (!matchesAny(origin, destPatterns)) continue;
+    const sent = await chrome.tabs.sendMessage(tab.id, { type: "TOKEN_APPLY", key, value })
+      .then(() => true).catch(() => false);
     if (sent) delivered.push(origin);
-    else unreachable.push(origin);
   }
-  return { delivered, unreachable };
+  return delivered;
 }
 
 async function appendAudit(entry) {

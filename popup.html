@@ -38,7 +38,7 @@
         <span class="info-value" id="origin" title="">-</span>
       </div>
       <div class="info-row">
-        <span class="info-label">Allow-listed</span>
+        <span class="info-label">In sync map</span>
         <span class="badge" id="allowed"><span class="dot"></span><span id="allowedText">-</span></span>
       </div>
       <div class="info-row">
@@ -53,7 +53,7 @@
 
     <button id="quickAdd" class="btn-primary btn-block" style="display:none;">
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      Allow-list this origin
+      Add a mapping for this origin
     </button>
 
     <button id="reloadTabs" class="btn-ghost btn-block">
@@ -77,6 +77,21 @@
       </button>
     </div>
   </div>
+
+  <div class="backdrop" id="backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="warn-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4M12 17.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <h3>Clear synced keys everywhere?</h3>
+      <p id="modalBody">This removes the synced keys from every mapped tab now. Each app signs out until it sets the value again.</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="cancelModal">Cancel</button>
+        <button class="btn-danger solid" id="confirmModal">Clear everywhere</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="popup.js"></script>
 </body>
 </html>
