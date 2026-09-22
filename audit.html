@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>KopyKat — Audit Log</title>
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="audit.css" />
+</head>
+<body>
+  <div class="page">
+    <div class="panel">
+      <header class="panel-header">
+        <div class="logo">
+          <svg viewBox="34 26 60 60" fill="none" aria-hidden="true">
+            <path fill="#fff" fill-rule="evenodd" d="M40 54 L45 30 L60 48 A24 22 0 0 1 68 48 L83 30 L88 54 A25 27 0 0 1 40 54 Z M51.4 60 A4.6 4.6 0 1 0 60.6 60 A4.6 4.6 0 1 0 51.4 60 Z M67.4 60 A4.6 4.6 0 1 0 76.6 60 A4.6 4.6 0 1 0 67.4 60 Z M60 69 h8 l-4 5 z"/>
+          </svg>
+        </div>
+        <div class="head-titles">
+          <h1>Audit Log</h1>
+          <p class="subtitle">What synced, from which tab, to which tab</p>
+        </div>
+        <span class="count-pill" id="eventCount">0 events</span>
+        <button id="themeToggle" class="btn-icon" title="Toggle theme" aria-label="Toggle theme">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="search" placeholder="Filter by key, origin, or value…" />
+        </div>
+        <button id="clear" class="btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Clear log
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Key</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div id="empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </div>
+        <p id="emptyText">No sync events recorded yet.</p>
+      </div>
+    </div>
+  </div>
+  <script src="audit.js"></script>
+</body>
+</html>

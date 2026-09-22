@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>KopyKat</title>
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="card">
+    <header class="header">
+      <div class="logo">
+        <svg viewBox="34 26 60 60" fill="none" aria-hidden="true">
+          <path fill="#fff" fill-rule="evenodd" d="M40 54 L45 30 L60 48 A24 22 0 0 1 68 48 L83 30 L88 54 A25 27 0 0 1 40 54 Z M51.4 60 A4.6 4.6 0 1 0 60.6 60 A4.6 4.6 0 1 0 51.4 60 Z M67.4 60 A4.6 4.6 0 1 0 76.6 60 A4.6 4.6 0 1 0 67.4 60 Z M60 69 h8 l-4 5 z"/>
+        </svg>
+      </div>
+      <div class="titles">
+        <h1>KopyKat</h1>
+        <p class="subtitle">Cross-tab session sync</p>
+      </div>
+      <button id="themeToggle" class="btn-icon" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </button>
+    </header>
+
+    <div class="status-banner" id="statusBanner">
+      <span class="status-led" id="statusLed"></span>
+      <span class="status-text" id="statusText">Checking…</span>
+      <label class="switch" title="Enable sync engine">
+        <input type="checkbox" id="enabledToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="info-list">
+      <div class="info-row">
+        <span class="info-label">This origin</span>
+        <span class="info-value" id="origin" title="">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Allow-listed</span>
+        <span class="badge" id="allowed"><span class="dot"></span><span id="allowedText">-</span></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Keys synced</span>
+        <span class="info-value" id="keyCount">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Last sync</span>
+        <span class="info-value" id="lastSync">-</span>
+      </div>
+    </div>
+
+    <button id="quickAdd" class="btn-primary btn-block" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Allow-list this origin
+    </button>
+
+    <button id="reloadTabs" class="btn-ghost btn-block">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 1 0-.7 4.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 5v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="reloadTabsLabel">Reload synced tabs</span>
+    </button>
+
+    <button id="clearAll" class="btn-danger btn-block">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span id="clearAllLabel">Clear synced keys everywhere</span>
+    </button>
+
+    <div class="actions">
+      <button id="openAudit" class="btn-ghost">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h12M8 12h12M8 18h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>
+        Audit Log
+      </button>
+      <button id="openOptions" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1A2 2 0 1 1 7.1 4l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        Options
+      </button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# Local scratch / preview files
+_shot.html
+_iconpreview.html
+
+# Node (if tooling is added later)
+node_modules/
