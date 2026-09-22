@@ -1,5 +1,5 @@
 .panel {
-  max-width: 900px;
+  max-width: 1260px;
   height: fit-content;
   animation: fade-up 0.35s var(--ease);
 }
@@ -128,7 +128,7 @@
 }
 
 .origin-cell {
-  max-width: 210px;
+  max-width: 360px;
   overflow-wrap: anywhere;
   color: var(--text);
 }

@@ -106,25 +106,65 @@
 }
 
 .welcome {
-  display: flex;
-  align-items: flex-start;
-  gap: 13px;
-  margin: 18px 0 4px;
-  padding: 15px 16px;
+  position: relative;
+  margin: 18px 0 6px;
+  padding: 20px 22px;
   border-radius: var(--radius);
-  background: var(--accent-light);
+  background:
+    radial-gradient(130% 100% at 0% 0%, var(--accent-light) 0%, transparent 60%),
+    var(--card-2);
   border: 1px solid var(--accent);
   animation: fade-up 0.35s var(--ease);
 }
-.welcome-icon { font-size: 22px; line-height: 1.2; flex-shrink: 0; }
-.welcome-text { flex: 1; font-size: 12.5px; line-height: 1.55; color: var(--text-dark); }
-.welcome-text b { color: var(--accent-dark); }
-.welcome-text span { display: block; margin-top: 3px; color: var(--text); }
+.welcome-head { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+.welcome-emoji {
+  font-size: 22px; width: 42px; height: 42px; flex-shrink: 0;
+  display: grid; place-items: center; border-radius: 12px;
+  background: var(--accent-light);
+}
+.welcome-title { font-size: 17px; margin: 0; color: var(--text-dark); }
+.welcome-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
 .welcome-x {
-  border: none; background: transparent; color: var(--accent-dark);
-  font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px; flex-shrink: 0;
+  position: absolute; top: 12px; right: 14px;
+  border: none; background: transparent; color: var(--text-muted);
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 4px;
 }
 .welcome-x:hover { color: var(--text-dark); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.step { display: flex; align-items: flex-start; gap: 12px; }
+.step-num {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: "Cascadia Code", Consolas, monospace; font-size: 13px; font-weight: 700;
+  color: #fff; background: var(--accent-grad);
+  box-shadow: 0 4px 10px -3px rgba(217, 119, 87, 0.6);
+}
+.step-body { font-size: 13px; line-height: 1.5; padding-top: 2px; }
+.step-body > b { color: var(--text-dark); display: block; margin-bottom: 1px; }
+.step-body span { color: var(--text); }
+.step-body span b { color: var(--accent-dark); }
+
+/* role tags on the origin sections */
+.tag-role {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+}
+.tag-role.gate { color: var(--text-muted); background: var(--bg-2); }
+.tag-role.from { color: var(--accent-dark); background: var(--accent-light); }
+.tag-role.to { color: var(--success); background: var(--success-bg); }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
+  background: var(--text-dark); color: var(--card-bg);
+  font-size: 13px; font-weight: 600; padding: 11px 18px; border-radius: 999px;
+  box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  z-index: 50;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { background: var(--danger); color: #fff; }
 
 .footer {
   padding: 18px 30px;

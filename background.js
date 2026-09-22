@@ -71,13 +71,14 @@ function setActionIcon(enabled) {
 }
 
 async function refreshBadge() {
-  const { enabled, allowedOrigins } = await getSettings();
+  const { enabled, allowedOrigins, fromOrigins, toOrigins } = await getSettings();
   setActionIcon(enabled); // terracotta when the engine is on, gray when off
   if (!enabled) {
     await chrome.action.setBadgeText({ text: "" });
     return;
   }
-  if (!allowedOrigins || allowedOrigins.length === 0) {
+  // Nothing can flow without a gate plus a from and a to.
+  if (!allowedOrigins?.length || !fromOrigins?.length || !toOrigins?.length) {
     await chrome.action.setBadgeBackgroundColor({ color: COLOR_WARN });
     await chrome.action.setBadgeText({ text: "!" });
     return;
@@ -107,7 +108,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.enabled || changes.allowedOrigins) refreshBadge();
+  if (changes.enabled || changes.allowedOrigins || changes.fromOrigins || changes.toOrigins) refreshBadge();
 });
 
 // Also correct badge + icon whenever the service worker spins up.
@@ -191,9 +192,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-// Panic button: remove every synced key from every allow-listed open tab.
+// Panic button: remove every synced key from every participating tab
+// (allow-listed AND listed under "from" or "to").
 async function clearAllTabs() {
-  const { syncKeys, allowedOrigins } = await getSettings();
+  const settings = await getSettings();
+  const { syncKeys } = settings;
   const tabs = await chrome.tabs.query({});
   const clearedOrigins = new Set();
   for (const tab of tabs) {
@@ -204,7 +207,7 @@ async function clearAllTabs() {
     } catch {
       continue;
     }
-    if (!isOriginAllowed(origin, allowedOrigins)) continue;
+    if (!isSourceOrigin(origin, settings) && !isDestOrigin(origin, settings)) continue;
     for (const key of syncKeys) {
       const ok = await chrome.tabs
         .sendMessage(tab.id, { type: "TOKEN_APPLY", key, value: null })
@@ -227,9 +230,10 @@ async function clearAllTabs() {
 }
 
 async function handleTokenReport(message, sender) {
-  const { enabled, allowedOrigins } = await getSettings();
-  if (!enabled) return;
-  if (!isOriginAllowed(message.origin, allowedOrigins)) return;
+  const settings = await getSettings();
+  if (!settings.enabled) return;
+  // Only accept a report from an origin that is allowed AND a "from" (source).
+  if (!isSourceOrigin(message.origin, settings)) return;
 
   const { key, value } = message;
   // No dedupe here: the content script already only reports on a real change
@@ -238,7 +242,7 @@ async function handleTokenReport(message, sender) {
   lastValues[key] = value ?? null;
   await persistLastValues();
 
-  const toOrigins = await broadcastValue(key, value, sender.tab?.id, allowedOrigins);
+  const toOrigins = await broadcastValue(key, value, sender.tab?.id, settings);
   await appendAudit({
     ts: Date.now(),
     key,
@@ -250,7 +254,7 @@ async function handleTokenReport(message, sender) {
   flashBadge(toOrigins.delivered.length);
 }
 
-async function broadcastValue(key, value, sourceTabId, allowedOrigins) {
+async function broadcastValue(key, value, sourceTabId, settings) {
   const tabs = await chrome.tabs.query({});
   const delivered = [];
   const unreachable = [];
@@ -262,7 +266,8 @@ async function broadcastValue(key, value, sourceTabId, allowedOrigins) {
     } catch {
       continue;
     }
-    if (!isOriginAllowed(origin, allowedOrigins)) continue;
+    // Only write to origins that are allowed AND a "to" (destination).
+    if (!isDestOrigin(origin, settings)) continue;
 
     const sent = await chrome.tabs
       .sendMessage(tab.id, { type: "TOKEN_APPLY", key, value })

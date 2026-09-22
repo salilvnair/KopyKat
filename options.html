@@ -26,12 +26,37 @@
 
       <div class="body">
         <div id="welcome" class="welcome" hidden>
-          <div class="welcome-icon">👋</div>
-          <div class="welcome-text">
-            <b>Welcome to KopyKat!</b>
-            <span>Three steps: <b>1)</b> add the sessionStorage keys to mirror, <b>2)</b> add the origins to sync, <b>3)</b> flip the sync engine on. That's it — no app code changes.</span>
-          </div>
           <button id="welcomeDismiss" class="welcome-x" aria-label="Dismiss">×</button>
+          <div class="welcome-head">
+            <span class="welcome-emoji">👋</span>
+            <div>
+              <h2 class="welcome-title">Welcome to KopyKat</h2>
+              <p class="welcome-sub">Get set up in three quick steps — no app‑code changes.</p>
+            </div>
+          </div>
+          <ol class="steps">
+            <li class="step">
+              <span class="step-num">1</span>
+              <div class="step-body">
+                <b>Add your keys</b>
+                <span>The <code>sessionStorage</code> keys to mirror, e.g. <code>currentUserTokenState</code>.</span>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num">2</span>
+              <div class="step-body">
+                <b>Set the gate &amp; direction</b>
+                <span>Allow‑list your origins, then pick which are <b>From</b> (copy) and which are <b>To</b> (paste).</span>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step-num">3</span>
+              <div class="step-body">
+                <b>Turn on the engine</b>
+                <span>Flip <b>Sync engine</b> on and hit <b>Save</b>. Reload your tabs and you're syncing.</span>
+              </div>
+            </li>
+          </ol>
         </div>
         <section class="section toggle-section">
           <div>
@@ -64,12 +89,47 @@
           <div class="section-head">
             <div class="section-title">Allowed origins</div>
             <span class="count-pill" id="originsCount">0</span>
+            <span class="tag-role gate">gatekeeper</span>
           </div>
-          <p class="hint">Only tabs on these origins are read from / written to. Wildcards allowed, e.g. <span class="mono-inline">https://*.example.com</span>.</p>
+          <p class="hint">The safety gate — an origin must be here to be touched at all. Wildcards allowed, e.g. <span class="mono-inline">https://*.example.com</span>.</p>
           <div class="chip-input" id="originsChips"></div>
           <div class="add-row">
-            <input type="text" id="originInput" placeholder="https://app-a.example.com" />
+            <input type="text" id="originInput" placeholder="https://dev.com" />
             <button id="addOrigin" class="btn-primary">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Add
+            </button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div class="section-title">Sync from</div>
+            <span class="count-pill" id="fromCount">0</span>
+            <span class="tag-role from">source</span>
+          </div>
+          <p class="hint">Where a value is <b>copied from</b>. A change here is picked up and pushed to your “to” origins.</p>
+          <div class="chip-input" id="fromChips"></div>
+          <div class="add-row">
+            <input type="text" id="fromInput" placeholder="https://dev.com" />
+            <button id="addFrom" class="btn-primary">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Add
+            </button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div class="section-title">Sync to</div>
+            <span class="count-pill" id="toCount">0</span>
+            <span class="tag-role to">destination</span>
+          </div>
+          <p class="hint">Where a value is <b>copied to</b>. These tabs receive the value from your “from” origins.</p>
+          <div class="chip-input" id="toChips"></div>
+          <div class="add-row">
+            <input type="text" id="toInput" placeholder="http://localhost:8080" />
+            <button id="addTo" class="btn-primary">
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               Add
             </button>
@@ -110,7 +170,6 @@
           <input type="file" id="importFile" accept="application/json,.json" hidden />
         </div>
         <div class="footer-right">
-          <span id="status"></span>
           <button id="save" class="btn-primary">
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 4h11l3 3v13H5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 4v5h7M8 20v-6h8v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
             Save changes
@@ -119,6 +178,8 @@
       </footer>
     </div>
   </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="options.js"></script>
 </body>

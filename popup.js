@@ -46,31 +46,45 @@ function relativeTime(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+function originMatches(origin, pattern) {
+  if (pattern === origin) return true;
+  if (!pattern.includes("*")) return false;
+  const rx = new RegExp(
+    "^" + pattern.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$"
+  );
+  return rx.test(origin);
+}
+const inList = (o, list) => (list || []).some((p) => originMatches(o, p));
+
 function renderStatus() {
-  const isAllowed = state.allowedOrigins.includes(currentOrigin);
+  const isAllowed = inList(currentOrigin, state.allowedOrigins);
+  const isFrom = isAllowed && inList(currentOrigin, state.fromOrigins);
+  const isTo = isAllowed && inList(currentOrigin, state.toOrigins);
 
   allowedTextEl.textContent = isAllowed ? "Yes" : "No";
   allowedEl.className = `badge ${isAllowed ? "yes" : "no"}`;
   keyCountEl.textContent = state.syncKeys.length ? String(state.syncKeys.length) : "0";
   quickAdd.style.display = (!isAllowed && currentOrigin !== "-") ? "flex" : "none";
 
+  const role = isFrom && isTo ? "from + to" : isFrom ? "source (from)" : isTo ? "destination (to)" : null;
+
   if (!state.enabled) {
     statusLed.className = "status-led";
     statusText.textContent = "Sync engine off";
-  } else if (state.allowedOrigins.length === 0) {
+  } else if (!state.allowedOrigins.length || !state.fromOrigins.length || !state.toOrigins.length) {
     statusLed.className = "status-led paused";
-    statusText.textContent = "On — no origins allow-listed";
-  } else if (!isAllowed) {
+    statusText.textContent = "On — set allowed, from & to";
+  } else if (!role) {
     statusLed.className = "status-led paused";
-    statusText.textContent = "On — this origin not synced";
+    statusText.textContent = "On — this origin isn't in the flow";
   } else {
     statusLed.className = "status-led on";
-    statusText.textContent = "Syncing this origin";
+    statusText.textContent = `Syncing · ${role}`;
   }
 }
 
 chrome.storage.local.get(
-  { enabled: false, allowedOrigins: [], syncKeys: [] },
+  { enabled: false, allowedOrigins: [], fromOrigins: [], toOrigins: [], syncKeys: [] },
   (settings) => {
     state = settings;
     enabledToggle.checked = settings.enabled;

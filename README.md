@@ -59,16 +59,28 @@ Both browsers use the same Manifest V3 build — one folder works for both.
 
 ## Configure
 
-1. Click the KopyKat icon → **Options**.
+KopyKat separates *permission* from *direction* so your audit log stays clean:
+
+- **Allowed origins** — the gatekeeper. An origin must be here to be touched at all.
+- **Sync from** — sources. A change here is copied…
+- **Sync to** — …to these destinations.
+
+So a value flows **from → to** only, and the log reads `https://dev.com → http://localhost:8080` instead of every origin fanning out to every other.
+
+1. Click the KopyKat icon → **Options** (onboarding opens automatically on first install).
 2. Add the **sessionStorage keys** to sync (default: `currentUser`).
-3. Add the **origins** to sync. Wildcards are allowed:
+3. Add your origins to **Allowed origins**, then list which are **Sync from** and which are **Sync to**. Wildcards are allowed:
    ```
-   https://app-a.example.com
-   https://app-b.example.com
+   https://dev.com
+   http://localhost:8080
    https://*.example.com        # any subdomain
    ```
 4. Flip the **Sync engine** on and **Save**.
-5. Reload the tabs on your allow‑listed origins so the content script attaches (or use **Reload synced tabs** in the popup).
+5. Reload the tabs on your origins so the content script attaches (or use **Reload synced tabs** in the popup).
+
+<div align="center">
+<img src="media/wizard.png" width="560" alt="KopyKat first-run onboarding" />
+</div>
 
 ---
 
@@ -76,6 +88,7 @@ Both browsers use the same Manifest V3 build — one folder works for both.
 
 **Sync engine**
 - ⚡ **Instant push sync** — a MAIN‑world script patches `sessionStorage.setItem` and broadcasts the moment a value changes; a 2.5 s poll is only a safety net.
+- ➡️ **Directional from → to** — separate source and destination lists keep the audit log clean (`dev.com → localhost:8080`), gated by an allow‑list.
 - 🌐 **Wildcard origins** — `https://*.example.com` matches every subdomain.
 - 🔁 **Auto‑reload allow‑listed tabs** on update so content scripts re‑attach — plus a manual **Reload synced tabs** button.
 - ⌨️ **Keyboard shortcut** — `Ctrl/⌘+Shift+Y` toggles the engine.

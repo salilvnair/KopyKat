@@ -6,9 +6,9 @@
   let lastSeen = {}; // key -> last raw value seen, to detect changes and avoid echo loops
   let applying = new Set(); // keys currently being written by an incoming TOKEN_APPLY
 
-  function originAllowed() {
+  function matches(list) {
     const origin = window.location.origin;
-    return (settings?.allowedOrigins || []).some((p) => {
+    return (list || []).some((p) => {
       if (p === origin) return true;
       if (!p.includes("*")) return false;
       const rx = new RegExp(
@@ -18,12 +18,13 @@
     });
   }
 
-  function isActive() {
-    return !!settings?.enabled && originAllowed();
-  }
+  const allowed = () => matches(settings?.allowedOrigins);
+  // Source: we READ/report changes here. Destination: we WRITE incoming values here.
+  const canSource = () => !!settings?.enabled && allowed() && matches(settings?.fromOrigins);
+  const canDest = () => !!settings?.enabled && allowed() && matches(settings?.toOrigins);
 
   function report(key, value) {
-    if (!isActive()) return;
+    if (!canSource()) return;
     if (!settings.syncKeys.includes(key)) return;
     if (applying.has(key)) return;
     if (value === lastSeen[key]) return;
@@ -37,10 +38,10 @@
   }
 
   chrome.storage.local.get(
-    { enabled: false, syncKeys: ["currentUserTokenState"], allowedOrigins: [] },
+    { enabled: false, syncKeys: ["currentUserTokenState"], allowedOrigins: [], fromOrigins: [], toOrigins: [] },
     (res) => {
       settings = res;
-      const active = isActive();
+      const active = canSource();
       for (const key of settings.syncKeys) {
         const raw = sessionStorage.getItem(key);
         lastSeen[key] = raw;
@@ -72,10 +73,12 @@
     if (changes.enabled) settings.enabled = changes.enabled.newValue;
     if (changes.syncKeys) settings.syncKeys = changes.syncKeys.newValue;
     if (changes.allowedOrigins) settings.allowedOrigins = changes.allowedOrigins.newValue;
+    if (changes.fromOrigins) settings.fromOrigins = changes.fromOrigins.newValue;
+    if (changes.toOrigins) settings.toOrigins = changes.toOrigins.newValue;
   });
 
   function poll() {
-    if (!isActive()) return;
+    if (!canSource()) return;
     for (const key of settings.syncKeys) {
       if (applying.has(key)) continue;
       const raw = sessionStorage.getItem(key);
@@ -92,8 +95,7 @@
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type !== "TOKEN_APPLY") return;
-    if (!settings?.enabled) return;
-    if (!originAllowed()) return;
+    if (!canDest()) return;
     if (!settings.syncKeys.includes(message.key)) return;
 
     const current = sessionStorage.getItem(message.key);

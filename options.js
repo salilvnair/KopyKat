@@ -1,17 +1,13 @@
 const enabledEl = document.getElementById("enabled");
 const autoReloadEl = document.getElementById("autoReload");
-const keysChipsEl = document.getElementById("keysChips");
-const originsChipsEl = document.getElementById("originsChips");
-const keyInputEl = document.getElementById("keyInput");
-const originInputEl = document.getElementById("originInput");
-const keysCountEl = document.getElementById("keysCount");
-const originsCountEl = document.getElementById("originsCount");
 const saveBtn = document.getElementById("save");
-const statusEl = document.getElementById("status");
+const toastEl = document.getElementById("toast");
 const themeToggle = document.getElementById("themeToggle");
 
 let syncKeys = [];
 let allowedOrigins = [];
+let fromOrigins = [];
+let toOrigins = [];
 
 /* ---------- theme ---------- */
 (function initTheme() {
@@ -28,67 +24,18 @@ themeToggle.addEventListener("click", () => {
   try { localStorage.setItem("kk-theme", next); } catch {}
 });
 
-chrome.storage.local.get(
-  { enabled: false, syncKeys: ["currentUserTokenState"], allowedOrigins: [], autoReloadOnUpdate: true },
-  (res) => {
-    enabledEl.checked = res.enabled;
-    autoReloadEl.checked = res.autoReloadOnUpdate;
-    syncKeys = [...res.syncKeys];
-    allowedOrigins = [...res.allowedOrigins];
-    renderChips(keysChipsEl, syncKeys, removeKey);
-    renderChips(originsChipsEl, allowedOrigins, removeOrigin);
-    updateCounts();
-  }
-);
-
-function updateCounts() {
-  keysCountEl.textContent = String(syncKeys.length);
-  originsCountEl.textContent = String(allowedOrigins.length);
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(text, kind = "ok") {
+  toastEl.textContent = text;
+  toastEl.className = `toast show ${kind}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toastEl.className = "toast"), 2200);
 }
 
-function renderChips(container, items, onRemove) {
-  container.innerHTML = "";
-  if (items.length === 0) {
-    const empty = document.createElement("span");
-    empty.className = "hint";
-    empty.style.margin = "0";
-    empty.textContent = "None added yet.";
-    container.appendChild(empty);
-    return;
-  }
-  for (const item of items) {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    const text = document.createElement("span");
-    text.className = "chip-text";
-    text.textContent = item;
-    text.title = item;
-    const remove = document.createElement("button");
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", `Remove ${item}`);
-    remove.addEventListener("click", () => onRemove(item));
-    chip.appendChild(text);
-    chip.appendChild(remove);
-    container.appendChild(chip);
-  }
-}
-
-function addKey() {
-  const value = keyInputEl.value.trim();
-  if (!value || syncKeys.includes(value)) return;
-  syncKeys.push(value);
-  keyInputEl.value = "";
-  renderChips(keysChipsEl, syncKeys, removeKey);
-  updateCounts();
-}
-
-function removeKey(value) {
-  syncKeys = syncKeys.filter((k) => k !== value);
-  renderChips(keysChipsEl, syncKeys, removeKey);
-  updateCounts();
-}
-
+/* ---------- reusable chip list (keys / allowed / from / to) ---------- */
 function normalizeOrigin(raw) {
+  if (raw.includes("*")) return raw; // wildcard patterns aren't valid URLs
   try {
     return new URL(raw).origin;
   } catch {
@@ -96,69 +43,139 @@ function normalizeOrigin(raw) {
   }
 }
 
-function addOrigin() {
-  const value = normalizeOrigin(originInputEl.value.trim());
-  if (!value || allowedOrigins.includes(value)) return;
-  allowedOrigins.push(value);
-  originInputEl.value = "";
-  renderChips(originsChipsEl, allowedOrigins, removeOrigin);
-  updateCounts();
-}
+function makeList({ chipsId, inputId, addId, countId, get, set, normalize }) {
+  const chipsEl = document.getElementById(chipsId);
+  const inputEl = document.getElementById(inputId);
+  const countEl = document.getElementById(countId);
 
-function removeOrigin(value) {
-  allowedOrigins = allowedOrigins.filter((o) => o !== value);
-  renderChips(originsChipsEl, allowedOrigins, removeOrigin);
-  updateCounts();
-}
-
-document.getElementById("addKey").addEventListener("click", addKey);
-keyInputEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    addKey();
+  function render() {
+    const items = get();
+    countEl.textContent = String(items.length);
+    chipsEl.innerHTML = "";
+    if (items.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "hint";
+      empty.style.margin = "0";
+      empty.textContent = "None added yet.";
+      chipsEl.appendChild(empty);
+      return;
+    }
+    for (const item of items) {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      const text = document.createElement("span");
+      text.className = "chip-text";
+      text.textContent = item;
+      text.title = item;
+      const remove = document.createElement("button");
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Remove ${item}`);
+      remove.addEventListener("click", () => {
+        set(get().filter((x) => x !== item));
+        render();
+      });
+      chip.append(text, remove);
+      chipsEl.appendChild(chip);
+    }
   }
+
+  function add() {
+    const raw = inputEl.value.trim();
+    const value = normalize ? normalize(raw) : raw;
+    if (!value || get().includes(value)) return;
+    set([...get(), value]);
+    inputEl.value = "";
+    render();
+  }
+
+  document.getElementById(addId).addEventListener("click", add);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      add();
+    }
+  });
+
+  return { render };
+}
+
+const keysList = makeList({
+  chipsId: "keysChips", inputId: "keyInput", addId: "addKey", countId: "keysCount",
+  get: () => syncKeys, set: (v) => (syncKeys = v)
+});
+const allowedList = makeList({
+  chipsId: "originsChips", inputId: "originInput", addId: "addOrigin", countId: "originsCount",
+  get: () => allowedOrigins, set: (v) => (allowedOrigins = v), normalize: normalizeOrigin
+});
+const fromList = makeList({
+  chipsId: "fromChips", inputId: "fromInput", addId: "addFrom", countId: "fromCount",
+  get: () => fromOrigins, set: (v) => (fromOrigins = v), normalize: normalizeOrigin
+});
+const toList = makeList({
+  chipsId: "toChips", inputId: "toInput", addId: "addTo", countId: "toCount",
+  get: () => toOrigins, set: (v) => (toOrigins = v), normalize: normalizeOrigin
 });
 
-document.getElementById("addOrigin").addEventListener("click", addOrigin);
-originInputEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    addOrigin();
-  }
-});
-
-function flashStatus(text) {
-  statusEl.textContent = text;
-  statusEl.classList.add("show");
-  setTimeout(() => statusEl.classList.remove("show"), 1600);
+function renderAll() {
+  keysList.render();
+  allowedList.render();
+  fromList.render();
+  toList.render();
 }
 
+/* ---------- load ---------- */
+chrome.storage.local.get(
+  {
+    enabled: false,
+    syncKeys: ["currentUserTokenState"],
+    allowedOrigins: [],
+    fromOrigins: [],
+    toOrigins: [],
+    autoReloadOnUpdate: true
+  },
+  (res) => {
+    enabledEl.checked = res.enabled;
+    autoReloadEl.checked = res.autoReloadOnUpdate;
+    syncKeys = [...res.syncKeys];
+    allowedOrigins = [...res.allowedOrigins];
+    fromOrigins = [...res.fromOrigins];
+    toOrigins = [...res.toOrigins];
+    renderAll();
+  }
+);
+
+/* ---------- save ---------- */
 saveBtn.addEventListener("click", () => {
   chrome.storage.local.set(
-    { enabled: enabledEl.checked, syncKeys, allowedOrigins, autoReloadOnUpdate: autoReloadEl.checked },
-    () => flashStatus("✓ Saved")
+    {
+      enabled: enabledEl.checked,
+      syncKeys,
+      allowedOrigins,
+      fromOrigins,
+      toOrigins,
+      autoReloadOnUpdate: autoReloadEl.checked
+    },
+    () => toast("✓ Settings saved")
   );
 });
 
 /* ---------- first-run onboarding ---------- */
 const welcome = document.getElementById("welcome");
-if (new URLSearchParams(location.search).get("welcome") === "1") {
-  welcome.hidden = false;
-}
-document.getElementById("welcomeDismiss").addEventListener("click", () => {
-  welcome.hidden = true;
-});
+if (new URLSearchParams(location.search).get("welcome") === "1") welcome.hidden = false;
+document.getElementById("welcomeDismiss").addEventListener("click", () => (welcome.hidden = true));
 
 /* ---------- export / import config ---------- */
 document.getElementById("exportBtn").addEventListener("click", () => {
   const config = {
     app: "KopyKat",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     settings: {
       enabled: enabledEl.checked,
       syncKeys,
       allowedOrigins,
+      fromOrigins,
+      toOrigins,
       autoReloadOnUpdate: autoReloadEl.checked
     }
   };
@@ -169,7 +186,7 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   a.download = "kopykat-config.json";
   a.click();
   URL.revokeObjectURL(url);
-  flashStatus("✓ Exported");
+  toast("✓ Config exported");
 });
 
 const importFile = document.getElementById("importFile");
@@ -181,17 +198,18 @@ importFile.addEventListener("change", () => {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(String(reader.result));
-      const s = parsed.settings ?? parsed; // accept bare settings too
-      if (Array.isArray(s.syncKeys)) syncKeys = s.syncKeys.filter((x) => typeof x === "string");
-      if (Array.isArray(s.allowedOrigins)) allowedOrigins = s.allowedOrigins.filter((x) => typeof x === "string");
+      const s = parsed.settings ?? parsed;
+      const strs = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === "string") : undefined);
+      if (strs(s.syncKeys)) syncKeys = strs(s.syncKeys);
+      if (strs(s.allowedOrigins)) allowedOrigins = strs(s.allowedOrigins);
+      if (strs(s.fromOrigins)) fromOrigins = strs(s.fromOrigins);
+      if (strs(s.toOrigins)) toOrigins = strs(s.toOrigins);
       if (typeof s.enabled === "boolean") enabledEl.checked = s.enabled;
       if (typeof s.autoReloadOnUpdate === "boolean") autoReloadEl.checked = s.autoReloadOnUpdate;
-      renderChips(keysChipsEl, syncKeys, removeKey);
-      renderChips(originsChipsEl, allowedOrigins, removeOrigin);
-      updateCounts();
-      flashStatus("✓ Imported — review, then Save");
+      renderAll();
+      toast("✓ Imported — review, then Save");
     } catch {
-      flashStatus("✗ Invalid file");
+      toast("✗ Invalid config file", "bad");
     }
     importFile.value = "";
   };

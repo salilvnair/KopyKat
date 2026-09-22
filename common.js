@@ -3,9 +3,13 @@ const DEFAULT_SETTINGS = {
   enabled: false,
   // Multiple sessionStorage keys can be synced (e.g. auth token, tenant id, etc.)
   syncKeys: ["currentUserTokenState"],
-  // Origins (e.g. "https://app-a.example.com") that are allowed to send/receive values.
+  // Gatekeeper: an origin must be here to be touched at all (read OR written).
   // Empty by default: the extension does nothing until you explicitly allow-list origins.
   allowedOrigins: [],
+  // Direction. A change is only READ from a "from" origin and only WRITTEN to a
+  // "to" origin, so the audit log reads cleanly as  from -> to  (no cross-product).
+  fromOrigins: [],
+  toOrigins: [],
   // Auto-reload allow-listed tabs when the extension is (re)installed/updated, so their
   // content scripts re-attach instead of being silently orphaned.
   autoReloadOnUpdate: true
@@ -30,8 +34,19 @@ function originMatches(origin, pattern) {
   const rx = new RegExp("^" + pattern.split("*").map(escapeRegex).join(".*") + "$");
   return rx.test(origin);
 }
+function matchesAny(origin, list) {
+  return Array.isArray(list) && list.some((p) => originMatches(origin, p));
+}
 function isOriginAllowed(origin, allowedOrigins) {
-  return Array.isArray(allowedOrigins) && allowedOrigins.some((p) => originMatches(origin, p));
+  return matchesAny(origin, allowedOrigins);
+}
+// A source (we read from it) must pass the gate AND be listed under "from".
+function isSourceOrigin(origin, settings) {
+  return isOriginAllowed(origin, settings.allowedOrigins) && matchesAny(origin, settings.fromOrigins);
+}
+// A destination (we write to it) must pass the gate AND be listed under "to".
+function isDestOrigin(origin, settings) {
+  return isOriginAllowed(origin, settings.allowedOrigins) && matchesAny(origin, settings.toOrigins);
 }
 
 // Never store/display raw secret values in the audit log - only a short masked preview.
